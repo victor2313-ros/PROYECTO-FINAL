@@ -1,0 +1,195 @@
+
+-- Creación de la tabla Usuario
+CREATE TABLE Usuario (
+    ID_usuario SERIAL PRIMARY KEY,
+    Nombre VARCHAR(255) NOT NULL,
+    CorreoElectronico VARCHAR(255) UNIQUE NOT NULL,
+    Contraseña VARCHAR(255) NOT NULL,
+    Role VARCHAR(10) DEFAULT 'user' CHECK (Role IN ('admin', 'user')),
+    FechaRegistro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Creación de la tabla Espacio
+CREATE TABLE Espacio (
+    ID_espacio SERIAL PRIMARY KEY,
+    Propietario_ID INT NOT NULL,
+    Ubicacion VARCHAR(255) NOT NULL,
+    TipoVehiculo VARCHAR(255) NOT NULL,
+    Disponibilidad BOOLEAN,
+    Tarifa DECIMAL(10, 2),
+    Area VARCHAR(5) CHECK (Area ~ '^A-[1-9]$|^A-10$'),
+    FOREIGN KEY (Propietario_ID) REFERENCES Usuario(ID_usuario)
+);
+
+-- Creación de la tabla Reserva
+CREATE TABLE Reserva (
+    ID_reserva SERIAL PRIMARY KEY,
+    FechaReserva TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    Nombres VARCHAR(255) ,
+    ModeloVehiculo VARCHAR(255) ,
+    NumeroPlaca VARCHAR(20) ,
+    DescripcionVehiculo TEXT,
+    AreaReservada VARCHAR(5) CHECK (AreaReservada ~ '^A-[1-9]$|^A-10$'),
+    Espacio_ID INT NOT NULL,
+    Usuario_ID INT NOT NULL,
+    FOREIGN KEY (Espacio_ID) REFERENCES Espacio(ID_espacio),
+    FOREIGN KEY (Usuario_ID) REFERENCES Usuario(ID_usuario)
+);
+
+-- Creación de otras tablas relacionadas (simplificadas para este contexto)
+CREATE TABLE RedesSociales (
+    ID_red SERIAL PRIMARY KEY,
+    ID_usuario INT NOT NULL,
+    TipoRed VARCHAR(255) NOT NULL,
+    TokenAcceso VARCHAR(255),
+    FOREIGN KEY (ID_usuario) REFERENCES Usuario(ID_usuario)
+);
+
+CREATE TABLE ConfiguracionEspacio (
+    ID_config SERIAL PRIMARY KEY,
+    Espacio_ID INT NOT NULL,
+    Tarifa DECIMAL(10, 2),
+    HorarioDisponibilidad VARCHAR(255),
+    PoliticaCancelacion VARCHAR(255),
+    FOREIGN KEY (Espacio_ID) REFERENCES Espacio(ID_espacio)
+);
+
+CREATE TABLE Calificacion (
+    ID_calificacion SERIAL PRIMARY KEY,
+    Usuario_ID INT NOT NULL,
+    Espacio_ID INT NOT NULL,
+    Calificacion INT,
+    Comentario TEXT,
+    Fecha DATE,
+    FOREIGN KEY (Usuario_ID) REFERENCES Usuario(ID_usuario),
+    FOREIGN KEY (Espacio_ID) REFERENCES Espacio(ID_espacio)
+);
+
+CREATE TABLE PanelControl (
+    ID_panel SERIAL PRIMARY KEY,
+    Propietario_ID INT NOT NULL,
+    FOREIGN KEY (Propietario_ID) REFERENCES Usuario(ID_usuario)
+);
+
+CREATE TABLE NotificacionUsuario (
+    ID_notif_usuario SERIAL PRIMARY KEY,
+    Usuario_ID INT NOT NULL,
+    TipoNotificacion VARCHAR(255),
+    Mensaje TEXT,
+    Fecha DATE,
+    FOREIGN KEY (Usuario_ID) REFERENCES Usuario(ID_usuario)
+);
+
+CREATE TABLE NotificacionPropietario (
+    ID_notif_propietario SERIAL PRIMARY KEY,
+    Propietario_ID INT NOT NULL,
+    TipoNotificacion VARCHAR(255),
+    Mensaje TEXT,
+    Fecha DATE,
+    FOREIGN KEY (Propietario_ID) REFERENCES Usuario(ID_usuario)
+);
+
+CREATE TABLE Pago (
+    ID_pago SERIAL PRIMARY KEY,
+    Usuario_ID INT NOT NULL,
+    Monto DECIMAL(10, 2),
+    MetodoPago VARCHAR(255),
+    Estado VARCHAR(255),
+    FOREIGN KEY (Usuario_ID) REFERENCES Usuario(ID_usuario)
+);
+
+CREATE TABLE Informe (
+    ID_informe SERIAL PRIMARY KEY,
+    TipoInforme VARCHAR(255),
+    Descripcion TEXT,
+    FechaGeneracion DATE
+);
+
+SELECT * from Reserva;
+
+-- Insertar datos en Usuario
+WITH usuario_insert AS (
+    INSERT INTO Usuario (Nombre, CorreoElectronico, Contraseña, Role)
+    VALUES ('Juan Perez', 'juan@example.com', 'contraseña123', 'user')
+    RETURNING ID_usuario
+),
+-- Insertar datos en Espacio
+espacio_insert AS (
+    INSERT INTO Espacio (Propietario_ID, Ubicacion, TipoVehiculo, Disponibilidad, Tarifa, Area)
+    VALUES ((SELECT ID_usuario FROM usuario_insert), 'Av. Principal 123', 'Automóvil', true, 20.00, 'A-1')
+    RETURNING ID_espacio
+)
+-- Insertar datos en Reserva
+INSERT INTO Reserva (FechaReserva, Nombres, ModeloVehiculo, NumeroPlaca, DescripcionVehiculo, AreaReservada, Espacio_ID, Usuario_ID)
+VALUES (CURRENT_TIMESTAMP, 'Juan Perez', 'Automóvil', 'ABC123', 'Reserva de prueba', 'A-1', (SELECT ID_espacio FROM espacio_insert), (SELECT ID_usuario FROM usuario_insert));
+
+
+
+INSERT INTO Usuario (Nombre, CorreoElectronico, Contraseña, Role, FechaRegistro)
+VALUES ('Administrador', 'admin@example.com', 'contraseña', 'admin', CURRENT_TIMESTAMP);
+-- Inserciones en la tabla Usuario
+INSERT INTO Usuario (Nombre, CorreoElectronico, Contraseña, Role) VALUES
+('Juan Perez', 'juan.perez@example.com', 'hashedpassword123', 'user'),
+('Maria Gomez', 'maria.gomez@example.com', 'hashedpassword456', 'admin'),
+('Carlos Ruiz', 'carlos.ruiz@example.com', 'hashedpassword789', 'user');
+
+-- Inserciones en la tabla Espacio
+INSERT INTO Espacio (Propietario_ID, Ubicacion, TipoVehiculo, Disponibilidad, Tarifa, Area) VALUES
+(1, 'Calle 123, Ciudad ABC', 'Coche', TRUE, 10.00, 'A-1'),
+(2, 'Avenida 456, Ciudad DEF', 'Motocicleta', FALSE, 5.00, 'A-2'),
+(3, 'Boulevard 789, Ciudad GHI', 'Coche', TRUE, 12.50, 'A-3');
+
+-- Inserciones en la tabla Reserva
+INSERT INTO Reserva (FechaReserva, Nombres, ModeloVehiculo, NumeroPlaca, DescripcionVehiculo, AreaReservada, Espacio_ID, Usuario_ID) VALUES
+(CURRENT_TIMESTAMP, 'Luis Martinez', 'Toyota Corolla', 'ABC123', 'Sedan, color azul', 'A-1', 1, 1),
+(CURRENT_TIMESTAMP, 'Ana Lopez', 'Honda Civic', 'XYZ789', 'Sedan, color rojo', 'A-2', 2, 2),
+(CURRENT_TIMESTAMP, 'Pedro Rodriguez', 'Kawasaki Ninja', 'MNO456', 'Motocicleta, color verde', 'A-3', 3, 3);
+
+-- Inserciones en la tabla RedesSociales
+INSERT INTO RedesSociales (ID_usuario, TipoRed, TokenAcceso) VALUES
+(1, 'Facebook', 'token123facebook'),
+(2, 'Twitter', 'token456twitter'),
+(3, 'Instagram', 'token789instagram');
+
+-- Inserciones en la tabla ConfiguracionEspacio
+INSERT INTO ConfiguracionEspacio (Espacio_ID, Tarifa, HorarioDisponibilidad, PoliticaCancelacion) VALUES
+(1, 10.00, '8:00 - 20:00', '24 horas antes'),
+(2, 5.00, '8:00 - 18:00', '12 horas antes'),
+(3, 12.50, '24 horas', '48 horas antes');
+
+-- Inserciones en la tabla Calificacion
+INSERT INTO Calificacion (Usuario_ID, Espacio_ID, Calificacion, Comentario, Fecha) VALUES
+(1, 1, 5, 'Excelente espacio y servicio.', CURRENT_DATE),
+(2, 2, 4, 'Buena ubicación, pero un poco caro.', CURRENT_DATE),
+(3, 3, 3, 'Espacio decente, pero podría mejorar.', CURRENT_DATE);
+
+-- Inserciones en la tabla PanelControl
+INSERT INTO PanelControl (Propietario_ID) VALUES
+(1),
+(2),
+(3);
+
+-- Inserciones en la tabla NotificacionUsuario
+INSERT INTO NotificacionUsuario (Usuario_ID, TipoNotificacion, Mensaje, Fecha) VALUES
+(1, 'Reserva', 'Tu reserva ha sido confirmada.', CURRENT_DATE),
+(2, 'Pago', 'Tu pago ha sido recibido.', CURRENT_DATE),
+(3, 'Espacio', 'Un espacio que te interesa está disponible.', CURRENT_DATE);
+
+-- Inserciones en la tabla NotificacionPropietario
+INSERT INTO NotificacionPropietario (Propietario_ID, TipoNotificacion, Mensaje, Fecha) VALUES
+(1, 'Espacio', 'Un nuevo usuario ha reservado tu espacio.', CURRENT_DATE),
+(2, 'Pago', 'Has recibido un nuevo pago.', CURRENT_DATE),
+(3, 'Comentario', 'Tu espacio ha sido calificado.', CURRENT_DATE);
+
+-- Inserciones en la tabla Pago
+INSERT INTO Pago (Usuario_ID, Monto, MetodoPago, Estado) VALUES
+(1, 10.00, 'Tarjeta de Crédito', 'Completado'),
+(2, 5.00, 'PayPal', 'Completado'),
+(3, 12.50, 'Tarjeta de Débito', 'Pendiente');
+
+-- Inserciones en la tabla Informe
+INSERT INTO Informe (TipoInforme, Descripcion, FechaGeneracion) VALUES
+('Mensual', 'Informe mensual de reservas y pagos.', CURRENT_DATE),
+('Anual', 'Informe anual de usuarios y calificaciones.', CURRENT_DATE),
+('Semanal', 'Informe semanal de actividades y notificaciones.', CURRENT_DATE);
+SELECT *from usuario
